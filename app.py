@@ -12,6 +12,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 import os
+import sys
 import re
 import ast
 from git import Repo
@@ -26,9 +27,13 @@ def get_vectorstore_from_text():
      # document = loader.load()
      text_splitter = RecursiveCharacterTextSplitter()
      document_chunks = text_splitter.split_documents(document)
-     embeddings = huggingface.HuggingFaceEmbeddings()
-     vector_store = chroma.Chroma.from_documents(document_chunks, embeddings)
+     embeddings = OpenAIEmbeddings()
 
+     vector_store = chroma.Chroma()
+     # for x in range(len(vector_store)):
+          # vector_store.delete(ids=[x])
+     print(vector_store.delete_collection())
+     vector_store = chroma.Chroma.from_documents(document_chunks, embeddings)
      return vector_store
 
 def get_context_retriever_chain(vector_store):
@@ -160,6 +165,9 @@ def save_repo_analysis(repo_url, output_file="repo_analysis.txt"):
           print(f"Error saving repository analysis: {e}")
 # app config
 def main():
+     # st.session_state.clear(
+     __import__('pysqlite3')
+     sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
      st.set_page_config(page_title="Chat", layout='wide')
      st.title("GitHub Bot")
      with st.sidebar:
