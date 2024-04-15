@@ -14,30 +14,38 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 import os
 import sys
 import re
+from urllib.parse import urlparse
 import ast
 from git import Repo
 import streamlit as st
 from dotenv import load_dotenv
 load_dotenv()
-def get_vectorstore_from_text():
-     # pythonloader
-     document = TextLoader('./repo_analysis.txt').load()
-     # document = DirectoryLoader('./sport', glob="**/*.txt").load()
+def get_vectorstore_from_text(repo_name):
+     file = f"./{repo_name}_analysis.txt"
+     document = TextLoader(file).load()
+     # document = DirectoryLoader("./repo_text", glob=f"{repo_name}_analysis.txt", loader_cls=TextLoader).load()
+     # document = DirectoryLoader(f"./{repo_name}/cloned_repo", glob="**/*.py", loader_cls=PythonLoader).load()
+     os.remove(f"./{repo_name}_analysis.txt")
      # loader = WebBaseLoader(url)
      # document = loader.load()
      text_splitter = RecursiveCharacterTextSplitter()
      document_chunks = text_splitter.split_documents(document)
-     embeddings = OpenAIEmbeddings()
-
-     vector_store = chroma.Chroma()
+     # embeddings = OpenAIEmbeddings(api_key=os.getenv('OPENAI_API_KEY'))
+     embeddings = huggingface.HuggingFaceEmbeddings()
+     st.session_state.vector_store = chroma.Chroma()
      # for x in range(len(vector_store)):
           # vector_store.delete(ids=[x])
-     print(vector_store.delete_collection())
-     vector_store = chroma.Chroma.from_documents(document_chunks, embeddings)
-     return vector_store
+     # print(vector_store.delete_collection())
+     st.session_state.vector_store = chroma.Chroma.from_documents(document_chunks, embeddings)
+     # return st.session_state.vector_store
 
 def get_context_retriever_chain(vector_store):
-     llm = ChatOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+     # llm = ChatOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+     llm = huggingface_hub.HuggingFaceHub(
+          huggingfacehub_api_token=os.getenv('HF_API_KEY'),
+          task='text-generation'
+          # repo_id='CohereForAI/c4ai-command-r-plus'
+     )
      retriever = vector_store.as_retriever()
      
      prompt = ChatPromptTemplate.from_messages([
@@ -51,8 +59,12 @@ def get_context_retriever_chain(vector_store):
 
 def get_conversational_rag_chain(retriever_chain): 
     
-     llm = ChatOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-
+     # llm = ChatOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+     llm = huggingface_hub.HuggingFaceHub(
+          huggingfacehub_api_token=os.getenv('HF_API_KEY'),
+          task='text-generation'
+          # repo_id='CohereForAI/c4ai-command-r-plus'
+     )
      prompt = ChatPromptTemplate.from_messages([
           ("system", "Answer the user's questions based on the below context:\n\n{context}"),
           MessagesPlaceholder(variable_name="chat_history"),
@@ -128,8 +140,8 @@ def analyze_code_files(code_files):
           all_function_names.extend(function_names)
 
      return total_functions, all_function_names
-
-def save_repo_analysis(repo_url, output_file="repo_analysis.txt"):
+# @st.cache
+def save_repo_analysis(repo_url, repo_name):
      try:
           # Clone the repository
           repo_folder = "temp_repo"
@@ -151,7 +163,9 @@ def save_repo_analysis(repo_url, output_file="repo_analysis.txt"):
           analysis_text += f"Function names: {', '.join(all_function_names)}\n"
 
           # Write analysis text to file
+          output_file = f"{repo_name}_analysis.txt"
           with open(output_file, "w", encoding="utf-8") as f:
+               f.write("")
                f.write(analysis_text)
 
           # Remove temporary repository folder
@@ -163,6 +177,13 @@ def save_repo_analysis(repo_url, output_file="repo_analysis.txt"):
           print(f"Repository analysis saved to '{output_file}'")
      except Exception as e:
           print(f"Error saving repository analysis: {e}")
+def extract_repo_name(repo_url):
+    parsed_url = urlparse(repo_url)
+    repo_name = parsed_url.path.strip("/").split("/")[-1]
+    if repo_name.endswith(".git"):
+        repo_name = repo_name[:-4]  # Remove the .git suffix
+    repo_name = repo_name.replace("-", "_").replace(" ", "_")
+    return repo_name
 # app config
 def main():
      # st.session_state.clear(
@@ -178,28 +199,25 @@ def main():
           st.info("Please enter a website URL")
 
      else:
-          # session state
-          # if 'messages' not in st.session_state:
-          #      st.session_state.messages = []
-
-          # for message in st.session_state.messages:
-          #      st.chat_message(message['role']).markdown(message['content'])
-
           if "chat_history" not in st.session_state:
                st.session_state.chat_history = [
                     AIMessage(content="Ask me about the repository..."),
                ]
           if "vector_store" not in st.session_state:
-               save_repo_analysis(git_url)
-               st.session_state.vector_store = get_vectorstore_from_text() 
+               repo_name = extract_repo_name(git_url)
+               save_repo_analysis(git_url, repo_name)
+               get_vectorstore_from_text(repo_name)
 
+          if 'git_url' not in st.session_state:
+               st.session_state.git_url = git_url
+               st.write(st.session_state)
+          
           # user input
           user_query = st.chat_input("Type your message here...")
           if user_query is not None and user_query != "":
                response = get_response(user_query)
                st.session_state.chat_history.append(HumanMessage(content=user_query))
                st.session_state.chat_history.append(AIMessage(content=response))
-               # st.session_state.messages.append({'role':'user', 'content': user_query})
           
 
           # conversation
