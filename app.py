@@ -30,8 +30,8 @@ def get_vectorstore_from_text(repo_name):
      # document = loader.load()
      text_splitter = RecursiveCharacterTextSplitter()
      document_chunks = text_splitter.split_documents(document)
-     # embeddings = OpenAIEmbeddings(api_key=os.getenv('OPENAI_API_KEY'))
-     embeddings = huggingface.HuggingFaceEmbeddings()
+     embeddings = OpenAIEmbeddings(api_key=os.getenv('OPENAI_API_KEY'))
+     # embeddings = huggingface.HuggingFaceEmbeddings()
      st.session_state.vector_store = chroma.Chroma()
      # for x in range(len(vector_store)):
           # vector_store.delete(ids=[x])
@@ -40,12 +40,12 @@ def get_vectorstore_from_text(repo_name):
      # return st.session_state.vector_store
 
 def get_context_retriever_chain(vector_store):
-     # llm = ChatOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-     llm = huggingface_hub.HuggingFaceHub(
-          huggingfacehub_api_token=os.getenv('HF_API_KEY'),
-          task='text-generation'
+     llm = ChatOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+     # llm = huggingface_hub.HuggingFaceHub(
+          # huggingfacehub_api_token=os.getenv('HF_API_KEY'),
+          # task='text-generation'
           # repo_id='CohereForAI/c4ai-command-r-plus'
-     )
+     # )
      retriever = vector_store.as_retriever()
      
      prompt = ChatPromptTemplate.from_messages([
@@ -59,12 +59,12 @@ def get_context_retriever_chain(vector_store):
 
 def get_conversational_rag_chain(retriever_chain): 
     
-     # llm = ChatOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-     llm = huggingface_hub.HuggingFaceHub(
-          huggingfacehub_api_token=os.getenv('HF_API_KEY'),
-          task='text-generation'
+     llm = ChatOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+     # llm = huggingface_hub.HuggingFaceHub(
+          # huggingfacehub_api_token=os.getenv('HF_API_KEY'),
+          # task='text-generation'
           # repo_id='CohereForAI/c4ai-command-r-plus'
-     )
+     # )
      prompt = ChatPromptTemplate.from_messages([
           ("system", "Answer the user's questions based on the below context:\n\n{context}"),
           MessagesPlaceholder(variable_name="chat_history"),
@@ -178,12 +178,12 @@ def save_repo_analysis(repo_url, repo_name):
      except Exception as e:
           print(f"Error saving repository analysis: {e}")
 def extract_repo_name(repo_url):
-    parsed_url = urlparse(repo_url)
-    repo_name = parsed_url.path.strip("/").split("/")[-1]
-    if repo_name.endswith(".git"):
-        repo_name = repo_name[:-4]  # Remove the .git suffix
-    repo_name = repo_name.replace("-", "_").replace(" ", "_")
-    return repo_name
+     parsed_url = urlparse(repo_url)
+     repo_name = parsed_url.path.strip("/").split("/")[-1]
+     if repo_name.endswith(".git"):
+          repo_name = repo_name[:-4]  # Remove the .git suffix
+     repo_name = repo_name.replace("-", "_").replace(" ", "_")
+     return repo_name
 # app config
 def main():
      # st.session_state.clear(
